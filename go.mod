@@ -1,4 +1,4 @@
-module github.com/prometheus/snmp_exporter
+module github.com/shatteredsilicon/snmp_exporter
 
 go 1.17
 

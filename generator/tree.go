@@ -23,7 +23,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 
-	"github.com/prometheus/snmp_exporter/config"
+	"github.com/shatteredsilicon/snmp_exporter/config"
 )
 
 // These types have one following the other.

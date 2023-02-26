@@ -29,7 +29,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/prometheus/snmp_exporter/config"
+	"github.com/shatteredsilicon/snmp_exporter/config"
 )
 
 const (
