@@ -299,12 +299,18 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 		prometheus.NewDesc("snmp_scrape_pdus_returned", "PDUs returned from get, bulkget, and walk.", nil, nil),
 		prometheus.GaugeValue,
 		float64(len(results.pdus)))
+
+	metricTree := buildMetricTree(c.module.Metrics)
 	oidToPdu := make(map[string]gosnmp.SnmpPDU, len(results.pdus))
 	for _, pdu := range results.pdus {
 		oidToPdu[pdu.Name[1:]] = pdu
 	}
 
-	metricTree := buildMetricTree(c.module.Metrics)
+	if _, ok := ssmMetricRecords.current[c.target]; !ok {
+		ssmMetricRecords.current[c.target] = &ssmMetricRecord{}
+	}
+	ssmMetricRecords.current[c.target].mu.Lock()
+	defer ssmMetricRecords.current[c.target].mu.Unlock()
 	// Look for metrics that match each pdu.
 PduLoop:
 	for oid, pdu := range oidToPdu {
@@ -316,20 +322,58 @@ PduLoop:
 			if !ok {
 				continue PduLoop
 			}
-			if head.metric != nil {
-				// Found a match.
-				samples := pduToSamples(oidList[i+1:], &pdu, head.metric, oidToPdu, c.logger)
+			if head.metric == nil {
+				continue
+			}
+
+			// Found a match.
+			switch head.metric.Name {
+			case "ssCpuRawUser":
+				ssmMetricRecords.current[c.target].ssCPURawUser = getPduValue(&pdu)
+			case "ssCpuRawNice":
+				ssmMetricRecords.current[c.target].ssCPURawNice = getPduValue(&pdu)
+			case "ssCpuRawSystem":
+				ssmMetricRecords.current[c.target].ssCPURawSystem = getPduValue(&pdu)
+			case "ssCpuRawIdle":
+				ssmMetricRecords.current[c.target].ssCPURawIdle = getPduValue(&pdu)
+			case "ssCpuRawWait":
+				ssmMetricRecords.current[c.target].ssCPURawWait = getPduValue(&pdu)
+			case "ssCpuRawKernel":
+				ssmMetricRecords.current[c.target].ssCPURawKernel = getPduValue(&pdu)
+			case "ssCpuRawInterrupt":
+				ssmMetricRecords.current[c.target].ssCPURawInterrupt = getPduValue(&pdu)
+			case "ssCpuRawSoftIRQ":
+				ssmMetricRecords.current[c.target].ssCPURawSoftIRQ = getPduValue(&pdu)
+			case "ssCpuRawSteal":
+				ssmMetricRecords.current[c.target].ssCPURawSteal = getPduValue(&pdu)
+			case "ssCpuRawGuest":
+				ssmMetricRecords.current[c.target].ssCPURawGuest = getPduValue(&pdu)
+			case "hrSystemDate":
+				ssmMetricRecords.current[c.target].hrSystemDate, _ = parseDateAndTime(&pdu)
+			default:
+				samples := c.pduToSamples(oidList[i+1:], &pdu, head.metric, oidToPdu, c.logger)
 				for _, sample := range samples {
 					ch <- sample
 				}
-				break
 			}
+			break
 		}
 	}
+
+	samples, err := c.collecSSMCPUMetrics()
+	if err != nil {
+		samples = append(samples, prometheus.NewInvalidMetric(prometheus.NewDesc("snmp_error", "Error calling collecSSMCPUMetrics", nil, nil),
+			fmt.Errorf("error for metric %s: %v", nodeCPUAverageName, err)))
+	}
+	for _, sample := range samples {
+		ch <- sample
+	}
+
 	ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc("snmp_scrape_duration_seconds", "Total SNMP time scrape took (walk and processing).", nil, nil),
 		prometheus.GaugeValue,
 		time.Since(start).Seconds())
+	c.copyHistorySSMMetrics()
 }
 
 func getPduValue(pdu *gosnmp.SnmpPDU) float64 {
@@ -397,7 +441,7 @@ func parseDateAndTime(pdu *gosnmp.SnmpPDU) (float64, error) {
 	return float64(t.Unix()), nil
 }
 
-func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, oidToPdu map[string]gosnmp.SnmpPDU, logger log.Logger) []prometheus.Metric {
+func (c *collector) pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, oidToPdu map[string]gosnmp.SnmpPDU, logger log.Logger) []prometheus.Metric {
 	var err error
 	// The part of the OID that is the indexes.
 	labels := indexesToLabels(indexOids, metric, oidToPdu)
@@ -413,24 +457,24 @@ func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, o
 	}
 
 	switch metric.Type {
-	case "counter":
+	case config.MetricTypeCounter:
 		t = prometheus.CounterValue
-	case "gauge":
+	case config.MetricTypeGauge:
 		t = prometheus.GaugeValue
-	case "Float", "Double":
+	case config.MetricTypeFloat, config.MetricTypeDouble:
 		t = prometheus.GaugeValue
-	case "DateAndTime":
+	case config.MetricTypeDateAndTime:
 		t = prometheus.GaugeValue
 		value, err = parseDateAndTime(pdu)
 		if err != nil {
 			level.Debug(logger).Log("msg", "Error parsing DateAndTime", "err", err)
 			return []prometheus.Metric{}
 		}
-	case "EnumAsInfo":
+	case config.MetricTypeEnumAsInfo:
 		return enumAsInfo(metric, int(value), labelnames, labelvalues)
-	case "EnumAsStateSet":
+	case config.MetricTypeEnumAsStateSet:
 		return enumAsStateSet(metric, int(value), labelnames, labelvalues)
-	case "Bits":
+	case config.MetricTypeBits:
 		return bits(metric, pdu.Value, labelnames, labelvalues)
 	default:
 		// It's some form of string.
@@ -469,8 +513,16 @@ func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, o
 		}
 	}
 
-	sample, err := prometheus.NewConstMetric(prometheus.NewDesc(metric.Name, metric.Help, labelnames, nil),
-		t, value, labelvalues...)
+	var sample prometheus.Metric
+	if isSSMMetrics(metric) {
+		samples, err := c.newSSMConstMetric(metric, t, value, labelnames, labelvalues, nil)
+		if err == nil {
+			return samples
+		}
+	} else {
+		sample, err = prometheus.NewConstMetric(prometheus.NewDesc(metric.Name, metric.Help, labelnames, nil),
+			t, value, labelvalues...)
+	}
 	if err != nil {
 		sample = prometheus.NewInvalidMetric(prometheus.NewDesc("snmp_error", "Error calling NewConstMetric", nil, nil),
 			fmt.Errorf("error for metric %s with labels %v from indexOids %v: %v", metric.Name, labelvalues, indexOids, err))
