@@ -23,6 +23,25 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const (
+	// MetricTypeGauge - metric type "gauge"
+	MetricTypeGauge = "gauge"
+	// MetricTypeCounter - metric type "counter"
+	MetricTypeCounter = "counter"
+	// MetricTypeFloat - metric type "Float"
+	MetricTypeFloat = "Float"
+	// MetricTypeDouble - metric type "Double"
+	MetricTypeDouble = "Double"
+	// MetricTypeDateAndTime - metric type "DateAndTime"
+	MetricTypeDateAndTime = "DateAndTime"
+	// MetricTypeEnumAsInfo - metric type "EnumAsInfo"
+	MetricTypeEnumAsInfo = "EnumAsInfo"
+	// MetricTypeEnumAsStateSet - metric type "EnumAsStateSet"
+	MetricTypeEnumAsStateSet = "EnumAsStateSet"
+	// MetricTypeBits - metric type "Bits"
+	MetricTypeBits = "Bits"
+)
+
 func LoadFile(filename string) (*Config, error) {
 	content, err := os.ReadFile(filename)
 	if err != nil {

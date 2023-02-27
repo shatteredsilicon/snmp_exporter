@@ -413,24 +413,24 @@ func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, o
 	}
 
 	switch metric.Type {
-	case "counter":
+	case config.MetricTypeCounter:
 		t = prometheus.CounterValue
-	case "gauge":
+	case config.MetricTypeGauge:
 		t = prometheus.GaugeValue
-	case "Float", "Double":
+	case config.MetricTypeFloat, config.MetricTypeDouble:
 		t = prometheus.GaugeValue
-	case "DateAndTime":
+	case config.MetricTypeDateAndTime:
 		t = prometheus.GaugeValue
 		value, err = parseDateAndTime(pdu)
 		if err != nil {
 			level.Debug(logger).Log("msg", "Error parsing DateAndTime", "err", err)
 			return []prometheus.Metric{}
 		}
-	case "EnumAsInfo":
+	case config.MetricTypeEnumAsInfo:
 		return enumAsInfo(metric, int(value), labelnames, labelvalues)
-	case "EnumAsStateSet":
+	case config.MetricTypeEnumAsStateSet:
 		return enumAsStateSet(metric, int(value), labelnames, labelvalues)
-	case "Bits":
+	case config.MetricTypeBits:
 		return bits(metric, pdu.Value, labelnames, labelvalues)
 	default:
 		// It's some form of string.
@@ -469,8 +469,16 @@ func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, o
 		}
 	}
 
-	sample, err := prometheus.NewConstMetric(prometheus.NewDesc(metric.Name, metric.Help, labelnames, nil),
-		t, value, labelvalues...)
+	var sample prometheus.Metric
+	if isSSMMetrics(metric) {
+		samples, err := newSSMConstMetric(metric, t, value, labelnames, labelvalues, nil)
+		if err == nil {
+			return samples
+		}
+	} else {
+		sample, err = prometheus.NewConstMetric(prometheus.NewDesc(metric.Name, metric.Help, labelnames, nil),
+			t, value, labelvalues...)
+	}
 	if err != nil {
 		sample = prometheus.NewInvalidMetric(prometheus.NewDesc("snmp_error", "Error calling NewConstMetric", nil, nil),
 			fmt.Errorf("error for metric %s with labels %v from indexOids %v: %v", metric.Name, labelvalues, indexOids, err))
