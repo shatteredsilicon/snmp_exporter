@@ -26,7 +26,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
 
-	"github.com/prometheus/snmp_exporter/config"
+	"github.com/shatteredsilicon/snmp_exporter/config"
 )
 
 // Generate a snmp_exporter config and write it out.
@@ -36,7 +36,7 @@ func generateConfig(nodes *Node, nameToNode map[string]*Node, logger log.Logger)
 		return fmt.Errorf("unable to determine absolute path for output")
 	}
 
-	content, err := os.ReadFile("generator.yml")
+	content, err := os.ReadFile(*inputPath)
 	if err != nil {
 		return fmt.Errorf("error reading yml config: %s", err)
 	}
@@ -95,6 +95,7 @@ func generateConfig(nodes *Node, nameToNode map[string]*Node, logger log.Logger)
 var (
 	failOnParseErrors  = kingpin.Flag("fail-on-parse-errors", "Exit with a non-zero status if there are MIB parsing errors").Default("false").Bool()
 	generateCommand    = kingpin.Command("generate", "Generate snmp.yml from generator.yml")
+	inputPath          = generateCommand.Flag("input-path", "Path to read generate config file").Default("generator.yml").Short('i').String()
 	outputPath         = generateCommand.Flag("output-path", "Path to to write resulting config file").Default("snmp.yml").Short('o').String()
 	parseErrorsCommand = kingpin.Command("parse_errors", "Debug: Print the parse errors output by NetSNMP")
 	dumpCommand        = kingpin.Command("dump", "Debug: Dump the parsed and prepared MIBs")

@@ -21,10 +21,10 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/gosnmp/gosnmp"
-	"github.com/prometheus/client_model/go"
+	io_prometheus_client "github.com/prometheus/client_model/go"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/prometheus/snmp_exporter/config"
+	"github.com/shatteredsilicon/snmp_exporter/config"
 )
 
 func TestPduToSample(t *testing.T) {
@@ -517,7 +517,7 @@ func TestPduToSample(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		metrics := pduToSamples(c.indexOids, c.pdu, c.metric, c.oidToPdu, log.NewNopLogger())
+		metrics := new(collector).pduToSamples(c.indexOids, c.pdu, c.metric, c.oidToPdu, log.NewNopLogger())
 		metric := &io_prometheus_client.Metric{}
 		expected := map[string]struct{}{}
 		for _, e := range c.expectedMetrics {
