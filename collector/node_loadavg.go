@@ -16,8 +16,12 @@ func init() {
 			constLabels prometheus.Labels,
 		) ([]prometheus.Metric, error) {
 			name := "node_load"
+			lns := make([]string, 0)
+			lvs := make([]string, 0)
 			for i := range labelNames {
 				if labelNames[i] != "laIndex" {
+					lns = append(lns, labelNames[i])
+					lvs = append(lvs, labelValues[i])
 					continue
 				}
 				if len(labelValues) <= i {
@@ -31,8 +35,8 @@ func init() {
 					name += "15"
 				}
 			}
-			sample, err := prometheus.NewConstMetric(prometheus.NewDesc(name, removeOidSuffix(metric.Help), labelNames, nil),
-				t, value, labelValues...)
+			sample, err := prometheus.NewConstMetric(prometheus.NewDesc(name, removeOidSuffix(metric.Help), lns, nil),
+				t, value, lvs...)
 			if err != nil {
 				return nil, err
 			}
