@@ -10,7 +10,7 @@
 Name:           %{repo}
 Summary:        Prometheus SNMP Exporter
 Version:        %{_version}
-Release:        1%{?dist}
+Release:        %{_release}
 License:        Apache-2.0
 Source0:        %{name}-%{_version}.tar.gz
 
