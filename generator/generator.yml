@@ -30,7 +30,6 @@ modules:
       - ssIORawReceived
       - ssSwapIn
       - ssSwapOut
-      - laLoadFloat
       - ipSystemStatsHCInReceives
       - ipSystemStatsHCInOctets
       - ipSystemStatsInHdrErrors

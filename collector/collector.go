@@ -308,6 +308,9 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 
 	if _, ok := ssmMetricRecords.current[c.target]; !ok {
 		ssmMetricRecords.current[c.target] = &ssmMetricRecord{}
+	} else {
+		// reset current data if needed
+		ssmMetricRecords.current[c.target].hrProcessorLoad = []float64{}
 	}
 	ssmMetricRecords.current[c.target].mu.Lock()
 	defer ssmMetricRecords.current[c.target].mu.Unlock()
@@ -351,6 +354,10 @@ PduLoop:
 			case "hrSystemDate":
 				ssmMetricRecords.current[c.target].hrSystemDate, _ = parseDateAndTime(&pdu)
 			default:
+				if head.metric.Name == "hrProcessorLoad" {
+					ssmMetricRecords.current[c.target].hrProcessorLoad = append(ssmMetricRecords.current[c.target].hrProcessorLoad, getPduValue(&pdu))
+				}
+
 				samples := c.pduToSamples(oidList[i+1:], &pdu, head.metric, oidToPdu, c.logger)
 				for _, sample := range samples {
 					ch <- sample
@@ -364,6 +371,15 @@ PduLoop:
 	if err != nil {
 		samples = append(samples, prometheus.NewInvalidMetric(prometheus.NewDesc("snmp_error", "Error calling collecSSMCPUMetrics", nil, nil),
 			fmt.Errorf("error for metric %s: %v", nodeCPUAverageName, err)))
+	}
+	for _, sample := range samples {
+		ch <- sample
+	}
+
+	samples, err = c.collectSSMLoadavgMetrics()
+	if err != nil {
+		samples = append(samples, prometheus.NewInvalidMetric(prometheus.NewDesc("snmp_error", "Error calling collecSSMLoadavgMetrics", nil, nil),
+			fmt.Errorf("error for metric loadavg: %v", err)))
 	}
 	for _, sample := range samples {
 		ch <- sample

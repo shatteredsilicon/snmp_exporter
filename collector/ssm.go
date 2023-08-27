@@ -11,6 +11,11 @@ import (
 	"github.com/shatteredsilicon/snmp_exporter/config"
 )
 
+type ssmMetricProcessorLoad struct {
+	hrSystemDate float64
+	value        float64
+}
+
 type ssmMetricRecord struct {
 	ssCPURawUser      float64
 	ssCPURawNice      float64
@@ -23,6 +28,8 @@ type ssmMetricRecord struct {
 	ssCPURawSteal     float64
 	ssCPURawGuest     float64
 	hrSystemDate      float64
+	hrProcessorLoad   []float64
+	hrProcessorLoads  []ssmMetricProcessorLoad
 	mu                sync.Mutex
 }
 
@@ -103,7 +110,7 @@ func isSSMMetrics(metric *config.Metric) bool {
 }
 
 func removeOidSuffix(msg string) string {
-	oidSuffixR, _ := regexp.Compile("- (\\d+\\.)*\\d+$")
+	oidSuffixR, _ := regexp.Compile(`- (\d+\.)*\d+$`)
 	matchedStr := oidSuffixR.FindString(msg)
 	return strings.TrimSuffix(msg, matchedStr)
 }
@@ -116,7 +123,7 @@ func (c *collector) newSSMConstMetric(
 	constLabels prometheus.Labels,
 ) ([]prometheus.Metric, error) {
 	if !isSSMMetrics(metric) {
-		return nil, errors.New("Not a SSM metric")
+		return nil, errors.New("not a SSM metric")
 	}
 
 	m := ssmMetrics[metric.Name]
@@ -148,6 +155,32 @@ func (c *collector) copyHistorySSMMetrics() {
 	if !ok {
 		return
 	}
+
+	hrProcessorLoads := []ssmMetricProcessorLoad{}
+	history, ok := ssmMetricRecords.history[c.target]
+	if ok {
+		hrProcessorLoads = history.hrProcessorLoads
+	}
+
+	for i := len(hrProcessorLoads) - 1; i >= 0; i-- {
+		if (current.hrSystemDate - hrProcessorLoads[i].hrSystemDate) < nodeLoad15Duration {
+			continue
+		}
+		if i == len(hrProcessorLoads)-1 {
+			hrProcessorLoads = []ssmMetricProcessorLoad{}
+		} else {
+			hrProcessorLoads = hrProcessorLoads[i+1:]
+		}
+		break
+	}
+
+	if loadavg := c.currentProcessorLoad(); loadavg != -1 {
+		hrProcessorLoads = append(hrProcessorLoads, ssmMetricProcessorLoad{
+			hrSystemDate: current.hrSystemDate,
+			value:        loadavg,
+		})
+	}
+
 	ssmMetricRecords.history[c.target] = &ssmMetricRecord{
 		ssCPURawUser:      current.ssCPURawUser,
 		ssCPURawNice:      current.ssCPURawNice,
@@ -160,5 +193,20 @@ func (c *collector) copyHistorySSMMetrics() {
 		ssCPURawSteal:     current.ssCPURawSteal,
 		ssCPURawGuest:     current.ssCPURawGuest,
 		hrSystemDate:      current.hrSystemDate,
+		hrProcessorLoads:  hrProcessorLoads,
 	}
+}
+
+func (c *collector) currentProcessorLoad() float64 {
+	current, ok := ssmMetricRecords.current[c.target]
+	if !ok || len(current.hrProcessorLoad) == 0 {
+		return -1
+	}
+
+	var total float64 = 0
+	for _, load := range current.hrProcessorLoad {
+		total += load
+	}
+
+	return total / float64(len(current.hrProcessorLoad))
 }
