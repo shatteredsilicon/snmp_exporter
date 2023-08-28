@@ -13,7 +13,7 @@ func init() {
 		RenameTo:    "node_memory_SwapFree",
 		HandleValue: handleMemoryValue,
 	}
-	ssmMetrics["memTotalReal"] = ssmMetric{
+	ssmMetrics["hrMemorySize"] = ssmMetric{
 		Type:        config.MetricTypeGauge,
 		RenameTo:    "node_memory_MemTotal",
 		HandleValue: handleMemoryValue,

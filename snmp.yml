@@ -47,6 +47,7 @@ ssm_mib:
   get:
   - 1.3.6.1.2.1.25.1.1.0
   - 1.3.6.1.2.1.25.1.2.0
+  - 1.3.6.1.2.1.25.2.2.0
   - 1.3.6.1.4.1.2021.11.3.0
   - 1.3.6.1.4.1.2021.11.4.0
   - 1.3.6.1.4.1.2021.11.50.0
@@ -65,7 +66,6 @@ ssm_mib:
   - 1.3.6.1.4.1.2021.4.15.0
   - 1.3.6.1.4.1.2021.4.3.0
   - 1.3.6.1.4.1.2021.4.4.0
-  - 1.3.6.1.4.1.2021.4.5.0
   - 1.3.6.1.4.1.2021.4.6.0
   metrics:
   - name: ifInOctets
@@ -221,6 +221,11 @@ ssm_mib:
     oid: 1.3.6.1.2.1.25.1.2
     type: DateAndTime
     help: The host's notion of the local date and time of day. - 1.3.6.1.2.1.25.1.2
+  - name: hrMemorySize
+    oid: 1.3.6.1.2.1.25.2.2
+    type: gauge
+    help: The amount of physical read-write main memory, typically RAM, contained
+      by the host. - 1.3.6.1.2.1.25.2.2
   - name: hrProcessorLoad
     oid: 1.3.6.1.2.1.25.3.3.1.2
     type: gauge
@@ -676,10 +681,6 @@ ssm_mib:
     oid: 1.3.6.1.4.1.2021.4.4
     type: gauge
     help: The amount of swap space currently unused or available. - 1.3.6.1.4.1.2021.4.4
-  - name: memTotalReal
-    oid: 1.3.6.1.4.1.2021.4.5
-    type: gauge
-    help: The total amount of real/physical memory installed on this host. - 1.3.6.1.4.1.2021.4.5
   - name: memAvailReal
     oid: 1.3.6.1.4.1.2021.4.6
     type: gauge

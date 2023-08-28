@@ -14,6 +14,7 @@ modules:
       - hrProcessorLoad
       - hrSystemUptime
       - hrSystemDate
+      - hrMemorySize
       - diskIONReadX
       - diskIONWrittenX
       - diskIOReads
@@ -21,7 +22,6 @@ modules:
       - diskIOBusyTime
       - memTotalSwap
       - memAvailSwap
-      - memTotalReal
       - memAvailReal
       - memShared
       - memBuffer
