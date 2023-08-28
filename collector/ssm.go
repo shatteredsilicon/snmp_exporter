@@ -30,6 +30,9 @@ type ssmMetricRecord struct {
 	hrSystemDate      float64
 	hrProcessorLoad   []float64
 	hrProcessorLoads  []ssmMetricProcessorLoad
+	hrMemorySize      float64
+	hrSWRunPerfMem    float64
+	collectedMetrics  map[string]struct{}
 	mu                sync.Mutex
 }
 

@@ -307,10 +307,13 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	if _, ok := ssmMetricRecords.current[c.target]; !ok {
-		ssmMetricRecords.current[c.target] = &ssmMetricRecord{}
+		ssmMetricRecords.current[c.target] = &ssmMetricRecord{
+			collectedMetrics: make(map[string]struct{}),
+		}
 	} else {
 		// reset current data if needed
 		ssmMetricRecords.current[c.target].hrProcessorLoad = []float64{}
+		ssmMetricRecords.current[c.target].hrSWRunPerfMem = 0
 	}
 	ssmMetricRecords.current[c.target].mu.Lock()
 	defer ssmMetricRecords.current[c.target].mu.Unlock()
@@ -328,6 +331,8 @@ PduLoop:
 			if head.metric == nil {
 				continue
 			}
+
+			ssmMetricRecords.current[c.target].collectedMetrics[head.metric.Name] = struct{}{}
 
 			// Found a match.
 			switch head.metric.Name {
@@ -353,9 +358,14 @@ PduLoop:
 				ssmMetricRecords.current[c.target].ssCPURawGuest = getPduValue(&pdu)
 			case "hrSystemDate":
 				ssmMetricRecords.current[c.target].hrSystemDate, _ = parseDateAndTime(&pdu)
+			case "hrSWRunPerfMem":
+				ssmMetricRecords.current[c.target].hrSWRunPerfMem = ssmMetricRecords.current[c.target].hrSWRunPerfMem + getPduValue(&pdu)
 			default:
-				if head.metric.Name == "hrProcessorLoad" {
+				switch head.metric.Name {
+				case "hrProcessorLoad":
 					ssmMetricRecords.current[c.target].hrProcessorLoad = append(ssmMetricRecords.current[c.target].hrProcessorLoad, getPduValue(&pdu))
+				case "hrMemorySize":
+					ssmMetricRecords.current[c.target].hrMemorySize = getPduValue(&pdu)
 				}
 
 				samples := c.pduToSamples(oidList[i+1:], &pdu, head.metric, oidToPdu, c.logger)
@@ -380,6 +390,15 @@ PduLoop:
 	if err != nil {
 		samples = append(samples, prometheus.NewInvalidMetric(prometheus.NewDesc("snmp_error", "Error calling collecSSMLoadavgMetrics", nil, nil),
 			fmt.Errorf("error for metric loadavg: %v", err)))
+	}
+	for _, sample := range samples {
+		ch <- sample
+	}
+
+	samples, err = c.collectSSMMemoryMetrics()
+	if err != nil {
+		samples = append(samples, prometheus.NewInvalidMetric(prometheus.NewDesc("snmp_error", "Error calling collectSSMMemoryMetrics", nil, nil),
+			fmt.Errorf("error for metric memory: %v", err)))
 	}
 	for _, sample := range samples {
 		ch <- sample

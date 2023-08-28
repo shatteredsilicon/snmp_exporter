@@ -15,6 +15,7 @@ modules:
       - hrSystemUptime
       - hrSystemDate
       - hrMemorySize
+      - hrSWRunPerfMem
       - diskIONReadX
       - diskIONWrittenX
       - diskIOReads
