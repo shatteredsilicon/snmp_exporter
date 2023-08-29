@@ -16,6 +16,8 @@ modules:
       - hrSystemDate
       - hrMemorySize
       - hrSWRunPerfMem
+      - hrSWRunPerfCPU
+      - hrSWRunName
       - diskIONReadX
       - diskIONWrittenX
       - diskIOReads
@@ -70,3 +72,7 @@ modules:
         lookup: ifDescr
       - source_indexes: [diskIOIndex]
         lookup: diskIODevice
+      - source_indexes: [hrSWRunIndex]
+        lookup: hrSWRunType
+      - source_indexes: [hrSWRunIndex]
+        lookup: hrSWRunName

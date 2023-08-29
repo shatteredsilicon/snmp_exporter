@@ -24,12 +24,61 @@ func (c *collector) collecSSMCPUMetrics() ([]prometheus.Metric, error) {
 		return samples, nil
 	}
 
-	totalTicks := current.totalCPUTicks() - history.totalCPUTicks()
-	if totalTicks <= 0 {
-		return samples, nil
-	}
 	labelNames := []string{"cpu", "mode"}
 	labelValues := []string{"All"}
+
+	totalTicks := current.totalCPUTicks() - history.totalCPUTicks()
+	if totalTicks <= 0 {
+		var idleTicks, userTicks, systemTicks float64
+		for i, currentItem := range current.hrSWRunPerfCPU {
+			ticks := currentItem.value
+			if historyItem, ok := history.hrSWRunPerfCPU[i]; ok {
+				ticks = ticks - historyItem.value
+			}
+			if ticks <= 0 {
+				ticks = 0
+			}
+
+			if currentItem.hrSWRunType == "2" { // "2" == "operatingSystem"
+				if current.hrSWRunName[i] == "System Idle Process" {
+					idleTicks = ticks
+				} else {
+					systemTicks += ticks
+				}
+			} else {
+				userTicks += ticks
+			}
+		}
+
+		if userTicks <= 0 && systemTicks <= 0 && idleTicks <= 0 {
+			return samples, nil
+		}
+
+		totalTicks = userTicks + systemTicks + idleTicks
+
+		sample, err := prometheus.NewConstMetric(prometheus.NewDesc(nodeCPUAverageName, nodeCPUAverageHelp, labelNames, nil),
+			prometheus.GaugeValue, userTicks/totalTicks*100, append(append([]string{}, labelValues...), "user")...)
+		if err != nil {
+			return samples, err
+		}
+		samples = append(samples, sample)
+
+		sample, err = prometheus.NewConstMetric(prometheus.NewDesc(nodeCPUAverageName, nodeCPUAverageHelp, labelNames, nil),
+			prometheus.GaugeValue, systemTicks/totalTicks*100, append(append([]string{}, labelValues...), "system")...)
+		if err != nil {
+			return samples, err
+		}
+		samples = append(samples, sample)
+
+		sample, err = prometheus.NewConstMetric(prometheus.NewDesc(nodeCPUAverageName, nodeCPUAverageHelp, labelNames, nil),
+			prometheus.GaugeValue, idleTicks/totalTicks*100, append(append([]string{}, labelValues...), "idle")...)
+		if err != nil {
+			return samples, err
+		}
+		samples = append(samples, sample)
+
+		return samples, nil
+	}
 
 	ssCPURawUserDiff := current.ssCPURawUser - history.ssCPURawUser
 	if ssCPURawUserDiff >= 0 {

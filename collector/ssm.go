@@ -16,6 +16,11 @@ type ssmMetricProcessorLoad struct {
 	value        float64
 }
 
+type ssmMetricPerfCPU struct {
+	hrSWRunType string
+	value       float64
+}
+
 type ssmMetricRecord struct {
 	ssCPURawUser      float64
 	ssCPURawNice      float64
@@ -32,6 +37,8 @@ type ssmMetricRecord struct {
 	hrProcessorLoads  []ssmMetricProcessorLoad
 	hrMemorySize      float64
 	hrSWRunPerfMem    float64
+	hrSWRunPerfCPU    map[string]ssmMetricPerfCPU
+	hrSWRunName       map[string]string
 	collectedMetrics  map[string]struct{}
 	mu                sync.Mutex
 }
@@ -197,6 +204,7 @@ func (c *collector) copyHistorySSMMetrics() {
 		ssCPURawGuest:     current.ssCPURawGuest,
 		hrSystemDate:      current.hrSystemDate,
 		hrProcessorLoads:  hrProcessorLoads,
+		hrSWRunPerfCPU:    current.hrSWRunPerfCPU,
 	}
 }
 

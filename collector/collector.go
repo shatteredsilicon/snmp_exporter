@@ -309,11 +309,15 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 	if _, ok := ssmMetricRecords.current[c.target]; !ok {
 		ssmMetricRecords.current[c.target] = &ssmMetricRecord{
 			collectedMetrics: make(map[string]struct{}),
+			hrSWRunPerfCPU:   make(map[string]ssmMetricPerfCPU),
+			hrSWRunName:      make(map[string]string),
 		}
 	} else {
 		// reset current data if needed
 		ssmMetricRecords.current[c.target].hrProcessorLoad = []float64{}
 		ssmMetricRecords.current[c.target].hrSWRunPerfMem = 0
+		ssmMetricRecords.current[c.target].hrSWRunPerfCPU = make(map[string]ssmMetricPerfCPU)
+		ssmMetricRecords.current[c.target].hrSWRunName = make(map[string]string)
 	}
 	ssmMetricRecords.current[c.target].mu.Lock()
 	defer ssmMetricRecords.current[c.target].mu.Unlock()
@@ -360,6 +364,15 @@ PduLoop:
 				ssmMetricRecords.current[c.target].hrSystemDate, _ = parseDateAndTime(&pdu)
 			case "hrSWRunPerfMem":
 				ssmMetricRecords.current[c.target].hrSWRunPerfMem = ssmMetricRecords.current[c.target].hrSWRunPerfMem + getPduValue(&pdu)
+			case "hrSWRunPerfCPU":
+				labels := indexesToLabels(oidList[i+1:], head.metric, oidToPdu)
+				ssmMetricRecords.current[c.target].hrSWRunPerfCPU[labels["hrSWRunIndex"]] = ssmMetricPerfCPU{
+					hrSWRunType: labels["hrSWRunType"],
+					value:       getPduValue(&pdu),
+				}
+			case "hrSWRunName":
+				labels := indexesToLabels(oidList[i+1:], head.metric, oidToPdu)
+				ssmMetricRecords.current[c.target].hrSWRunName[labels["hrSWRunIndex"]] = string(pdu.Value.([]byte))
 			default:
 				switch head.metric.Name {
 				case "hrProcessorLoad":
