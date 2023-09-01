@@ -18,6 +18,7 @@ modules:
       - hrSWRunPerfMem
       - hrSWRunPerfCPU
       - hrSWRunName
+      - hrStorageSize
       - diskIONReadX
       - diskIONWrittenX
       - diskIOReads
@@ -76,3 +77,11 @@ modules:
         lookup: hrSWRunType
       - source_indexes: [hrSWRunIndex]
         lookup: hrSWRunName
+      - source_indexes: [hrStorageIndex]
+        lookup: hrStorageAllocationUnits
+      - source_indexes: [hrStorageIndex]
+        lookup: hrStorageType
+      - source_indexes: [hrStorageIndex]
+        lookup: hrStorageDescr
+      - source_indexes: [hrStorageIndex]
+        lookup: hrStorageUsed

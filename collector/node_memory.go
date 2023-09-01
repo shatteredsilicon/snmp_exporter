@@ -10,6 +10,8 @@ const (
 	memAvailableHelp = "The amount of memory currently available."
 	memUsedName      = "node_memory_MemUsed"
 	memUsedHelp      = "The amount of memory currently used"
+	memVirtualName   = "node_memory_MemVirtual"
+	memVirtualHelp   = "The amount of virtual memory"
 )
 
 func init() {
