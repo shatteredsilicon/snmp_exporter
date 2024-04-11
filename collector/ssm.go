@@ -125,7 +125,7 @@ func removeOidSuffix(msg string) string {
 	return strings.TrimSuffix(msg, matchedStr)
 }
 
-func (c *collector) newSSMConstMetric(
+func newSSMConstMetric(
 	metric *config.Metric,
 	t prometheus.ValueType,
 	value float64,
@@ -160,7 +160,7 @@ func (c *collector) newSSMConstMetric(
 	return []prometheus.Metric{sample}, err
 }
 
-func (c *collector) copyHistorySSMMetrics() {
+func (c *Collector) copyHistorySSMMetrics() {
 	current, ok := ssmMetricRecords.current[c.target]
 	if !ok {
 		return
@@ -208,7 +208,7 @@ func (c *collector) copyHistorySSMMetrics() {
 	}
 }
 
-func (c *collector) currentProcessorLoad() float64 {
+func (c *Collector) currentProcessorLoad() float64 {
 	current, ok := ssmMetricRecords.current[c.target]
 	if !ok || len(current.hrProcessorLoad) == 0 {
 		return -1

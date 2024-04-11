@@ -60,7 +60,7 @@ func init() {
 // handleMemoryValue converts memory unit from 'KB' to 'B'
 func handleMemoryValue(value float64) float64 { return value * 1024 }
 
-func (c *collector) collectSSMMemoryMetrics() ([]prometheus.Metric, error) {
+func (c *Collector) collectSSMMemoryMetrics() ([]prometheus.Metric, error) {
 	samples := []prometheus.Metric{}
 
 	current, ok := ssmMetricRecords.current[c.target]
