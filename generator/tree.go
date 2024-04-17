@@ -180,7 +180,7 @@ func metricAccess(a string) bool {
 	case "ACCESS_READONLY", "ACCESS_READWRITE", "ACCESS_CREATE", "ACCESS_NOACCESS":
 		return true
 	default:
-		// the others are inaccessible metrics.
+		// The others are inaccessible metrics.
 		return false
 	}
 }
@@ -232,9 +232,8 @@ func getMetricNode(oid string, node *Node, nameToNode map[string]*Node) (*Node, 
 		_, ok = metricType(n.Type)
 		if ok && metricAccess(n.Access) && len(n.Indexes) == 0 {
 			return n, oidScalar
-		} else {
-			return n, oidSubtree
 		}
+		return n, oidSubtree
 	}
 
 	// Unknown OID/name, search Node tree for longest match.
@@ -250,6 +249,26 @@ func getMetricNode(oid string, node *Node, nameToNode map[string]*Node) (*Node, 
 		return nil, oidNotFound
 	}
 	return n, oidInstance
+}
+
+// In the case of multiple nodes with the same label try to return the node
+// where the OID matches in every branch apart from the last one.
+func getIndexNode(lookup string, nameToNode map[string]*Node, metricOid string) *Node {
+	for _, node := range nameToNode {
+		if node.Label != lookup {
+			continue
+		}
+
+		oid := strings.Split(metricOid, ".")
+		oidPrefix := strings.Join(oid[:len(oid)-1], ".")
+
+		if strings.HasPrefix(node.Oid, oidPrefix) {
+			return node
+		}
+	}
+
+	// If no node matches, revert to previous behavior.
+	return nameToNode[lookup]
 }
 
 func generateConfigModule(cfg *ModuleConfig, node *Node, nameToNode map[string]*Node, logger log.Logger) (*config.Module, error) {
@@ -341,7 +360,10 @@ func generateConfigModule(cfg *ModuleConfig, node *Node, nameToNode map[string]*
 				return // Ignored metric.
 			}
 
+			// Afi (Address family)
 			prevType := ""
+			// Safi (Subsequent address family, e.g. Multicast/Unicast)
+			prev2Type := ""
 			for count, i := range n.Indexes {
 				index := &config.Index{Labelname: i}
 				indexNode, ok := nameToNode[i]
@@ -364,16 +386,32 @@ func generateConfigModule(cfg *ModuleConfig, node *Node, nameToNode map[string]*
 				if subtype, ok := combinedTypes[index.Type]; ok {
 					if prevType == subtype {
 						metric.Indexes = metric.Indexes[:len(metric.Indexes)-1]
+					} else if prev2Type == subtype {
+						metric.Indexes = metric.Indexes[:len(metric.Indexes)-2]
 					} else {
 						level.Warn(logger).Log("msg", "Can't handle index type on node, missing preceding", "node", n.Label, "type", index.Type, "missing", subtype)
 						return
 					}
 				}
+				prev2Type = prevType
 				prevType = indexNode.TextualConvention
 				metric.Indexes = append(metric.Indexes, index)
 			}
 			out.Metrics = append(out.Metrics, metric)
 		})
+	}
+
+	// Build an map of all oid targeted by a filter to access it easily later.
+	filterMap := map[string][]string{}
+
+	for _, filter := range cfg.Filters.Static {
+		for _, oid := range filter.Targets {
+			n, ok := nameToNode[oid]
+			if ok {
+				oid = n.Oid
+			}
+			filterMap[oid] = filter.Indices
+		}
 	}
 
 	// Apply lookups.
@@ -400,7 +438,7 @@ func generateConfigModule(cfg *ModuleConfig, node *Node, nameToNode map[string]*
 				if _, ok := nameToNode[lookup.Lookup]; !ok {
 					return nil, fmt.Errorf("unknown index '%s'", lookup.Lookup)
 				}
-				indexNode := nameToNode[lookup.Lookup]
+				indexNode := getIndexNode(lookup.Lookup, nameToNode, metric.Oid)
 				typ, ok := metricType(indexNode.Type)
 				if !ok {
 					return nil, fmt.Errorf("unknown index type %s for %s", indexNode.Type, lookup.Lookup)
@@ -433,6 +471,14 @@ func generateConfigModule(cfg *ModuleConfig, node *Node, nameToNode map[string]*
 				} else {
 					needToWalk[indexNode.Oid] = struct{}{}
 				}
+				// We apply the same filter to metric.Oid if the lookup oid is filtered.
+				indices, found := filterMap[indexNode.Oid]
+				if found {
+					delete(needToWalk, metric.Oid)
+					for _, index := range indices {
+						needToWalk[metric.Oid+"."+index+"."] = struct{}{}
+					}
+				}
 				if lookup.DropSourceIndexes {
 					// Avoid leaving the old labelname around.
 					toDelete = append(toDelete, lookup.SourceIndexes...)
@@ -453,8 +499,8 @@ func generateConfigModule(cfg *ModuleConfig, node *Node, nameToNode map[string]*
 		}
 	}
 
-	// Check that the object before an InetAddress is an InetAddressType,
-	// if not, change it to an OctetString.
+	// Check that the object before an InetAddress is an InetAddressType.
+	// If not, change it to an OctetString.
 	for _, metric := range out.Metrics {
 		if metric.Type == "InetAddress" || metric.Type == "InetAddressMissingSize" {
 			// Get previous oid.
@@ -482,9 +528,28 @@ func generateConfigModule(cfg *ModuleConfig, node *Node, nameToNode map[string]*
 		for _, metric := range out.Metrics {
 			if name == metric.Name || name == metric.Oid {
 				metric.RegexpExtracts = params.RegexpExtracts
+				metric.Offset = params.Offset
+				metric.Scale = params.Scale
 			}
 		}
 	}
+
+	// Apply filters.
+	for _, filter := range cfg.Filters.Static {
+		// Delete the oid targeted by the filter, as we won't walk the whole table.
+		for _, oid := range filter.Targets {
+			n, ok := nameToNode[oid]
+			if ok {
+				oid = n.Oid
+			}
+			delete(needToWalk, oid)
+			for _, index := range filter.Indices {
+				needToWalk[oid+"."+index+"."] = struct{}{}
+			}
+		}
+	}
+
+	out.Filters = cfg.Filters.Dynamic
 
 	oids := []string{}
 	for k := range needToWalk {

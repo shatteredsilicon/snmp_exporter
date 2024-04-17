@@ -9,7 +9,7 @@ const (
 	nodeCPUAverageHelp = "The percentage of CPU utilization."
 )
 
-func (c *collector) collecSSMCPUMetrics() ([]prometheus.Metric, error) {
+func (c *Collector) collecSSMCPUMetrics() ([]prometheus.Metric, error) {
 	samples := []prometheus.Metric{}
 
 	history, ok := ssmMetricRecords.history[c.target]

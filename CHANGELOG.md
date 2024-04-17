@@ -1,3 +1,55 @@
+## 0.25.0 / 2023-12-10
+
+* [ENHANCEMENT] generator: Add support for subsequent address family #782
+* [ENHANCEMENT] generator: Fix lookups to match OIDs closer to the index OID. #828
+* [FEATURE] Add a scaling factor #1026
+* [FEATURE] generator: Enable passing input file, output file, and mibs dir as flags #1028
+* [FEATURE] Add an offset factor #1029
+* [BUGFIX] Fix and optimize generator Docker image building #1045
+
+snmp.yml changes:
+
+* Override `bsnAPName` to DisplayString #660
+* Import TP-Link EAP MIB  #833
+* Updated Mikrotik neighbor indexes make them unique #986
+* Update PowerNet MIB to v4.5.1 #1003
+* Refactor HOST-RESOURCES-MIB #1027
+* Update keepalived MIB files to latest version #1044
+
+## 0.24.1 / 2023-09-01
+
+* [BUGFIX] Remove auth label from collection metric #981
+
+## 0.24.0 / 2023-08-29
+
+* [CHANGE] Sanitize invalid UTF-8 #968
+* [FEATURE] Support fetching multiple modules in one scrape #945
+* [FEATURE] Support loading multiple configuration files #970
+
+## 0.23.0 / 2023-07-20
+
+BREAKING CHANGES:
+
+This version of the exporter introduces a new configuration file format. This
+new format separates the walk and metric mappings from the connection and
+authentication settings. This allows for easier configuration of different
+auth params without having to duplicate the full walk and metric mapping.
+
+See auth-split-migration.md for more details.
+
+* [CHANGE] Split config of auth and modules #859
+* [FEATURE] Add support for parsing SNMP transport from target #914
+* [ENHANCEMENT] Improved Lookup process for label information #908
+* [BUGFIX] Fix metrics path not using command-line argument value #904
+
+## 0.22.0 / 2023-06-15
+
+* [FEATURE] Add indices filters #624
+* [FEATURE] Add MIBOPTS flag to the generator #891
+* [ENHANCEMENT] Treat Bits as OctetString #870
+* [ENHANCEMENT] Report duration in logs for canceled scrapes #876
+* [BUGFIX] Fix several generator MIBs. #843, #868, #889
+
 ## 0.21.0 / 2022-11-22
 
 * [CHANGE] Update to exporter-toolkit v0.8.1 (#810)

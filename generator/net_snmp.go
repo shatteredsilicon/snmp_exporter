@@ -20,6 +20,7 @@ package main
 #include <net-snmp/mib_api.h>
 #include <net-snmp/agent/agent_callbacks.h>
 #include <net-snmp/library/default_store.h>
+#include <net-snmp/library/parse.h>
 #include <unistd.h>
 // From parse.c
 // Hacky workarounds to detect which version of net-snmp this
@@ -70,6 +71,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -151,17 +153,32 @@ var (
 	}
 )
 
+// getMibsDir joins the user-specified MIB directories into a single string; if the user didn't pass any,
+// the default netsnmp mibs directory is returned.
+func getMibsDir(paths []string) string {
+	if len(paths) == 1 && paths[0] == "" {
+		return C.GoString(C.netsnmp_get_mib_directory())
+	}
+	return strings.Join(paths, ":")
+}
+
 // Initialize NetSNMP. Returns MIB parse errors.
 //
 // Warning: This function plays with the stderr file descriptor.
 func initSNMP(logger log.Logger) (string, error) {
 	// Load all the MIBs.
-	os.Setenv("MIBS", "ALL")
-	// Help the user find their MIB directories.
-	level.Info(logger).Log("msg", "Loading MIBs", "from", C.GoString(C.netsnmp_get_mib_directory()))
+	err := os.Setenv("MIBS", "ALL")
+	if err != nil {
+		return "", err
+	}
+	mibsDir := getMibsDir(*userMibsDir)
+	level.Info(logger).Log("msg", "Loading MIBs", "from", mibsDir)
+	C.netsnmp_set_mib_directory(C.CString(mibsDir))
+	if *snmpMIBOpts != "" {
+		C.snmp_mib_toggle_options(C.CString(*snmpMIBOpts))
+	}
 	// We want the descriptions.
 	C.snmp_set_save_descriptions(1)
-
 	// Make stderr go to a pipe, as netsnmp tends to spew a
 	// lot of errors on startup that there's no apparent
 	// way to disable or redirect.

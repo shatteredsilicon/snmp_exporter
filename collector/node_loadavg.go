@@ -17,7 +17,7 @@ const (
 	nodeLoad15Duration float64 = 14 * 60.0
 )
 
-func (c *collector) collectSSMLoadavgMetrics() ([]prometheus.Metric, error) {
+func (c *Collector) collectSSMLoadavgMetrics() ([]prometheus.Metric, error) {
 	samples := []prometheus.Metric{}
 
 	history, ok := ssmMetricRecords.history[c.target]
