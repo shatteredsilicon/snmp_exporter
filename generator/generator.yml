@@ -68,6 +68,7 @@ modules:
       - ssCpuRawSoftIRQ
       - ssCpuRawSteal
       - ssCpuRawGuest
+      - laLoadFloat
     lookups:
       - source_indexes: [ifIndex]
         lookup: ifDescr
@@ -85,3 +86,5 @@ modules:
         lookup: hrStorageDescr
       - source_indexes: [hrStorageIndex]
         lookup: hrStorageUsed
+      - source_indexes: [laIndex]
+        lookup: laNames
