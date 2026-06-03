@@ -2,7 +2,7 @@ module github.com/shatteredsilicon/snmp_exporter
 
 go 1.25.0
 
-toolchain go1.25.10
+toolchain go1.25.11
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
