@@ -26,8 +26,8 @@ Prometheus SNMP Exporter
 mkdir -p %{_GOPATH}/bin
 export GOPATH=%{_GOPATH}
 
-go build -ldflags="-s -w" -o %{_GOPATH}/bin/snmp_exporter .
-go build -ldflags="-s -w" -o %{_GOPATH}/bin/generator ./generator
+GOTOOLCHAIN=local go build -ldflags="-s -w" -o %{_GOPATH}/bin/snmp_exporter .
+GOTOOLCHAIN=local go build -ldflags="-s -w" -o %{_GOPATH}/bin/generator ./generator
 
 %install
 install -m 0755 -d $RPM_BUILD_ROOT/opt/ss/snmp_exporter/bin
