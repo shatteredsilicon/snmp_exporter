@@ -14,7 +14,7 @@ Release:        %{_release}
 License:        Apache-2.0
 Source0:        %{name}-%{version}-%{release}.tar.gz
 
-BuildRequires:  golang net-snmp-devel
+BuildRequires:  golang >= 1.27.3, net-snmp-devel
 
 %description
 Prometheus SNMP Exporter
